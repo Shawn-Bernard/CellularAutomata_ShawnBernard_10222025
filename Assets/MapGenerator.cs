@@ -1,6 +1,7 @@
 using System;
 using System.Net.NetworkInformation;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class MapGenerator : MonoBehaviour
 {
@@ -13,7 +14,16 @@ public class MapGenerator : MonoBehaviour
     [Range(0,100)]
     public int randomFillPercent;
 
+    [Range(0, 10)]
+    public int mapSmooth;
     int[,] map;
+
+    public int borderSize = 5;
+    int[,] borderMap;
+
+[SerializeField] bool ActiveGizmo;
+
+    MeshGenerator meshGenerator => GetComponent<MeshGenerator>();
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -21,12 +31,41 @@ public class MapGenerator : MonoBehaviour
         GenerateMap();
     }
 
+    private void Update()
+    {
+        if (Keyboard.current[Key.Space].wasPressedThisFrame)
+        {
+            GenerateMap();
+        }
+    }
+
     void GenerateMap()
     {
         map = new int[width, height];
         RandomFillMap();
+        for (int i = 0; i < mapSmooth; i++)
+        {
+            SmoothMap();
+        }
 
-        SmoothMap();
+        borderMap = new int[width + borderSize * 2,height + borderSize * 2];
+
+        for (int x = 0; x < borderMap.GetLength(0); x++)
+        {
+            for (int y = 0; y < borderMap.GetLength(1); y++)
+            {
+                if (x >= borderSize && x < width && y >= borderSize && y < height)
+                {
+                    borderMap[x,y] = map[x - borderSize,y - borderSize];
+                }
+                else
+                {
+                    borderMap[x, y] = 1;
+                }
+            }
+        }
+                meshGenerator.GenerateMesh(borderMap, 1);
+        
     }
 
     void RandomFillMap()
@@ -54,7 +93,9 @@ public class MapGenerator : MonoBehaviour
             }
         }
     }
-
+    /// <summary>
+    /// Runs a for loop that gets the neighbour walls and sets (1) wall or (2) air based on neighbours  
+    /// </summary>
     void SmoothMap()
     {
         for (int x = 0; x < width; x++)
@@ -74,13 +115,18 @@ public class MapGenerator : MonoBehaviour
             }
         }
     }
-
+    /// <summary>
+    /// Runs a for loop around the x,y handed in and returns the walls counted
+    /// </summary>
+    /// <param name="gridX"></param>
+    /// <param name="gridY"></param>
+    /// <returns></returns>
     int GetSurroundingWallCount(int gridX, int gridY)
     {
         int wallCount = 0;
-        for (int neighbourX = gridX-1; neighbourX <= gridX; neighbourX++)
+        for (int neighbourX = gridX - 1; neighbourX <= gridX + 1; neighbourX++)
         {
-            for (int neighbourY = gridY - 1; neighbourY <= gridY; neighbourY++)
+            for (int neighbourY = gridY - 1; neighbourY <= gridY + 1; neighbourY++)
             {
                 if (neighbourX >= 0 && neighbourX < width && neighbourY >= 0 && neighbourY < height)
                 {
@@ -100,6 +146,7 @@ public class MapGenerator : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        if (ActiveGizmo)
         if (Application.isPlaying)
         {
             if (map != null)
