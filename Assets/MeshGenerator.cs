@@ -5,10 +5,11 @@ using System;
 public class MeshGenerator : MonoBehaviour
 {
     public MeshFilter walls;
+    public MeshFilter cave;
 
     [SerializeField] private int wallHeight = 5;
-    
-    [SerializeField] bool ActiveGizmo;
+
+    [SerializeField] private int tileAmount = 10;
 
     public SquareGrid squareGrid;
     private List<Vector3> vertices;
@@ -19,42 +20,64 @@ public class MeshGenerator : MonoBehaviour
     private List<List<int>> outlines = new List<List<int>>();
     HashSet<int> checkedVertices = new HashSet<int>();
 
-    public void GenerateMesh(int[,] map, float squareSize) 
+    public void GenerateMesh(int[,] map, float squareSize, bool is2D) 
     {
         triangleDictionary.Clear();
         outlines.Clear();
         checkedVertices.Clear();
+        
+        squareGrid = new SquareGrid(map, squareSize);
 
-		squareGrid = new SquareGrid(map, squareSize);
+        vertices = new List<Vector3>();
+        triangles = new List<int>();
 
-		vertices = new List<Vector3>();
-		triangles = new List<int>();
+        for (int x = 0; x < squareGrid.squares.GetLength(0); x++)
+        {
+            for (int y = 0; y < squareGrid.squares.GetLength(1); y++)
+            {
+                TriangulateSquare(squareGrid.squares[x, y]);
+            }
+        }   
+        Mesh mesh = new Mesh();
+        cave.mesh = mesh;
 
-		for (int x = 0; x < squareGrid.squares.GetLength(0); x ++) {
-			for (int y = 0; y < squareGrid.squares.GetLength(1); y ++) {
-				TriangulateSquare(squareGrid.squares[x,y]);
-			}
-		}
+        mesh.vertices = vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
+        mesh.RecalculateNormals();
 
-		Mesh mesh = new Mesh();
-		GetComponent<MeshFilter>().mesh = mesh;
+        Vector2[] uvs = new Vector2[vertices.Count];
 
-		mesh.vertices = vertices.ToArray();
-		mesh.triangles = triangles.ToArray();
-		mesh.RecalculateNormals();
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            float percentX = Mathf.InverseLerp(-map.GetLength(0) / 2 * squareSize, map.GetLength(0) / 2 * squareSize, vertices[i].x) * tileAmount;
+            float percentY = Mathf.InverseLerp(-map.GetLength(0) / 2 * squareSize, map.GetLength(0) / 2 * squareSize, vertices[i].z) * tileAmount;
+            uvs[i] = new Vector2(percentX, percentY);
+        }
+        mesh.uv = uvs;
 
-        CreateWallMesh();
-	}
+        if (is2D)
+        {
+            Generate2DMeshCollider();
+        }
+        else
+        {
+            CreateWallMesh();
+        }
+    }
 
     void CreateWallMesh()
     {
+        MeshCollider currentCollider = GetOrAddComponent<MeshCollider>();
+        //Destroy(currentCollider);
+
         CalculateMeshOutlines();
+
         List<Vector3> wallVertices = new List<Vector3>();
         List<int> wallTriangles = new List<int>();
         Mesh wallMesh = new Mesh();
 
 
-        foreach (var outline in outlines)
+        foreach (List<int> outline in outlines)
         {
             for (int i = 0; i < outline.Count - 1; i++)
             {
@@ -72,12 +95,67 @@ public class MeshGenerator : MonoBehaviour
                 wallTriangles.Add(startIndex + 1);
                 wallTriangles.Add(startIndex + 0);
             }
-        }   
+        }
         wallMesh.vertices = wallVertices.ToArray();
         wallMesh.triangles = wallTriangles.ToArray();
-
         walls.mesh = wallMesh;
+
+        MeshCollider wallCollider = gameObject.AddComponent<MeshCollider>();
+        wallCollider.sharedMesh = wallMesh;
     }
+
+    void Generate2DMeshCollider()
+    {
+        EdgeCollider2D[] currentColliders = GetOrAddComponents<EdgeCollider2D>();
+
+        for (int i = 0; i < currentColliders.Length; i++)
+        {
+            Destroy(currentColliders[i]);
+        }
+        CalculateMeshOutlines();
+
+        foreach (List<int> outline in outlines)
+        {
+            EdgeCollider2D edgeCollider = gameObject.AddComponent<EdgeCollider2D>();
+            Vector2[] edgePoints = new Vector2[outline.Count];
+
+            for (int i = 0; i < outline.Count; i++)
+            {
+                edgePoints[i] = new Vector2(vertices[outline[i]].x, vertices[outline[i]].z);
+            }
+            edgeCollider.points = edgePoints;
+        }
+    }
+    /// <summary>
+    /// Return the get component and if the component is not on object add it to object 
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    private T GetOrAddComponent<T>() where T : Component
+    {
+        T component = gameObject.GetComponent<T>();
+        if (component == null)
+        {
+            component = gameObject.AddComponent<T>();
+        }
+        return component;
+    }
+
+    /// <summary>
+    /// Return array of type compoent if there's no coponent on game object add to game object
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public T[] GetOrAddComponents<T>() where T : Component
+    {
+        T[] components = gameObject.GetComponents<T>();
+        if (components.Length == 0)
+        {
+            return new T[] { gameObject.AddComponent<T>() };
+        }
+        return components;
+    }
+
 
     void TriangulateSquare(Square square)
     {
@@ -91,7 +169,7 @@ public class MeshGenerator : MonoBehaviour
                 MeshFromPoints(square.centerLeft, square.centerBottom, square.bottomLeft);
                 break;
             case 2:
-                MeshFromPoints(square.centerRight, square.centerBottom, square.centerRight);
+                MeshFromPoints(square.bottomRight, square.centerBottom, square.centerRight);
                 break;
             case 4:
                 MeshFromPoints(square.topRight, square.centerRight, square.centerTop);
@@ -309,39 +387,6 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
-    private void OnDrawGizmos()
-    {
-        if (ActiveGizmo)
-        if (Application.isPlaying)
-        {
-            if (squareGrid != null)
-            {
-                for (int x = 0; x < squareGrid.squares.GetLength(0); x++)
-                {
-                    for (int y = 0; y < squareGrid.squares.GetLength(1); y++)
-                    {
-                        Gizmos.color = (squareGrid.squares[x, y].topLeft.active) ? Color.black : Color.white;
-                        Gizmos.DrawCube(squareGrid.squares[x, y].topLeft.position, Vector3.one * .4f);
-
-                        Gizmos.color = (squareGrid.squares[x, y].topRight.active) ? Color.black : Color.white;
-                        Gizmos.DrawCube(squareGrid.squares[x, y].topRight.position, Vector3.one * .4f);
-
-                        Gizmos.color = (squareGrid.squares[x, y].bottomLeft.active) ? Color.black : Color.white;
-                        Gizmos.DrawCube(squareGrid.squares[x, y].bottomLeft.position, Vector3.one * .4f);
-
-                        Gizmos.color = (squareGrid.squares[x, y].bottomRight.active) ? Color.black : Color.white;
-                        Gizmos.DrawCube(squareGrid.squares[x, y].bottomRight.position, Vector3.one * .4f);
-
-                        Gizmos.color = Color.gray;
-                        Gizmos.DrawCube(squareGrid.squares[x, y].centerTop.position, Vector3.one * .4f);
-                        Gizmos.DrawCube(squareGrid.squares[x, y].centerRight.position, Vector3.one * .4f);
-                        Gizmos.DrawCube(squareGrid.squares[x, y].centerBottom.position, Vector3.one * .4f);
-                        Gizmos.DrawCube(squareGrid.squares[x, y].centerLeft.position, Vector3.one * .4f);
-                    }
-                }
-            }
-        }
-    }
     public class SquareGrid
     {
         public Square[,] squares;
