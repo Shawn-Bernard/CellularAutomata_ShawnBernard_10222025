@@ -68,7 +68,7 @@ public class MeshGenerator : MonoBehaviour
     void CreateWallMesh()
     {
         MeshCollider currentCollider = GetOrAddComponent<MeshCollider>();
-        //Destroy(currentCollider);
+        Destroy(currentCollider);
 
         CalculateMeshOutlines();
 

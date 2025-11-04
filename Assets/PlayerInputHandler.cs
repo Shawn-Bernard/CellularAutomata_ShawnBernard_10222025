@@ -17,16 +17,7 @@ public class PlayerInputHandler : MonoBehaviour
     {
         Vector2 move = moveAction.ReadValue<Vector2>();
 
-        if (controller == null) return;
-
-        if (controller != null && controller.is2D)
-        {
-            controller.Move(new Vector3(move.x, move.y, 0f));
-        }
-        else
-        {
-            controller.Move(new Vector3(move.x, 0f, move.y));
-        }
+        //controller.Move(new Vector3(move.x, 0f, move.y));
     }
 
     void Move(InputAction.CallbackContext context)

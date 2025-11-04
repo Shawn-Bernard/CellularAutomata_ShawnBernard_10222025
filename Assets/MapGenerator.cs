@@ -62,7 +62,7 @@ public class MapGenerator : MonoBehaviour
             System.Random rng = new System.Random();
             Coord spawnCoord = mainRoom.tiles[rng.Next(mainRoom.tiles.Count)];
             Vector3 spawnPosition = new Vector3(spawnCoord.tileX, 0, spawnCoord.tileY); //CoordToWorldPoint(spawnCoord);
-            //spawnCoord = 
+            
             spawnPosition.y = PositionOffset;
             player.transform.position = spawnPosition;
         }

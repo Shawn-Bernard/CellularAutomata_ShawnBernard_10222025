@@ -1,64 +1,100 @@
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.InputSystem;
 
 public class Controller : MonoBehaviour
 {
-    [SerializeField] public bool is2D = false;
-    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] InputManager inputManager;
 
-    private Rigidbody2D _rigidbody2D;
-    private Rigidbody _rigidbody3D;
+    [SerializeField] private float walkSpeed = 5f;
+    [SerializeField] private float currentSpeed = 5f;
+    [SerializeField] private float mouseSensitivity = 5f;
 
-    private BoxCollider2D boxCollider2D;
-    private BoxCollider boxCollider;
+    private Vector3 velocity;
 
-    private Vector3 moveVector;
+    [SerializeField] CharacterController characterController;
 
+    [SerializeField] private Vector2 moveInput;
+
+    [SerializeField] private Vector2 lookInput;
+
+    public GameObject attackModel;
+
+    private void Awake()
+    {
+
+    }
     void Start()
     {
-        if (is2D)
-        {
-            _rigidbody2D = GetOrAddComponent<Rigidbody2D>();
-            boxCollider2D = GetOrAddComponent<BoxCollider2D>();
-            _rigidbody2D.freezeRotation = true;
-            _rigidbody2D.gravityScale = 0;
-        }
-        else
-        {
-            _rigidbody3D = GetOrAddComponent<Rigidbody>();
-            boxCollider = GetOrAddComponent<BoxCollider>();
-            _rigidbody3D.freezeRotation = true;
-        }
     }
 
+    private void Update()
+    {
+        HandleMovement();
+        HandleLook();
+    }
     void FixedUpdate()
     {
-        if (is2D && _rigidbody2D != null)
-        {
-            _rigidbody2D.linearVelocity = new Vector2(moveVector.x * moveSpeed, moveVector.y * moveSpeed);
+        //HandleLook();
+    }
 
-        }
-        else if (!is2D && _rigidbody3D != null)
-        {
-            Vector3 velocity = new Vector3(moveVector.x, _rigidbody3D.linearVelocity.y, moveVector.z);
-            _rigidbody3D.linearVelocity = velocity * moveSpeed;
+    private void HandleMovement()
+    {
+        Vector3 moveInputDirection = new Vector3(moveInput.x, 0, moveInput.y);
+        Vector3 worldMoveDirection = transform.TransformDirection(moveInputDirection);
 
+
+        Vector3 horizontalMoveDirection = worldMoveDirection * currentSpeed;
+
+        Vector3 movement = horizontalMoveDirection;
+
+        characterController.Move(movement * Time.deltaTime);
+    }
+    public void HandleLook()
+    {
+        float LookX = lookInput.x * mouseSensitivity * Time.deltaTime;
+        transform.Rotate(Vector3.up * LookX);
+    }
+
+
+    private void SetMoveInput(Vector2 inputValue)
+    {
+        moveInput = new Vector2(inputValue.x, inputValue.y);
+    }
+
+    private void SetLookInput(Vector2 inputValue)
+    {
+        lookInput = new Vector2(inputValue.x, inputValue.y);
+    }
+
+    private void SetAttackInput(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            Instantiate(attackModel, transform.position + Vector3.forward, Quaternion.identity);
+            if (Physics.Raycast(transform.position, transform.position + Vector3.forward,out RaycastHit hitInfo, 5f))
+            {
+                //Debug.Log("Player hit");
+            }
+            Debug.Log("Attack button");
         }
     }
 
-    public T GetOrAddComponent<T>() where T : Component
+    private void OnEnable()
     {
-        T component = GetComponent<T>();
-        if (component == null)
-        {
-            component = gameObject.AddComponent<T>();
-        }
-        return component;
+        inputManager.MoveInputEvent += SetMoveInput;
+        inputManager.LookInputEvent += SetLookInput;
+        inputManager.AttackInputEvent += SetAttackInput;
     }
 
-
-    public void Move(Vector3 _moveVector)
+    private void OnDisable()
     {
-        moveVector = _moveVector;
+        inputManager.MoveInputEvent -= SetMoveInput;
+        inputManager.LookInputEvent -= SetLookInput;
+        inputManager.AttackInputEvent -= SetAttackInput;
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawLine(transform.position, transform.position + Vector3.forward);
     }
 }
