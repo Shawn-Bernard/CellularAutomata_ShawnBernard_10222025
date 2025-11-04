@@ -11,7 +11,7 @@ public class Controller : MonoBehaviour
 
     private Vector3 velocity;
 
-    [SerializeField] CharacterController characterController;
+    public CharacterController characterController;
 
     [SerializeField] private Vector2 moveInput;
 
@@ -30,11 +30,10 @@ public class Controller : MonoBehaviour
     private void Update()
     {
         HandleMovement();
-        HandleLook();
     }
     void FixedUpdate()
     {
-        //HandleLook();
+        HandleLook();
     }
 
     private void HandleMovement()

@@ -14,7 +14,6 @@ public class InputManager : MonoBehaviour, Inputs.IPlayerActions
             inputs = new Inputs();
             inputs.Player.SetCallbacks(this);
             inputs.Player.Enable();
-            Debug.Log("Setting call back to the player");
         }
         catch (Exception exception)
         {

@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 public class MapGenerator : MonoBehaviour
 {
     [Header("Player setting")]
-    public GameObject player;
+    public Controller player;
     public float PositionOffset = -1.5f;
 
     [Header("Map Settings")]
@@ -39,9 +39,7 @@ public class MapGenerator : MonoBehaviour
     [Range(0, 100)]
     public int roomThresHoldSize = 50; // Less = more smaller rooms
 
-    private MeshGenerator meshGenerator => GetComponent<MeshGenerator>();
-
-    private Room mainRoom;
+    [SerializeField] private Room mainRoom;
 
     void Start()
     {
@@ -54,18 +52,24 @@ public class MapGenerator : MonoBehaviour
         {
             GenerateMap();
         }
+        if (Keyboard.current[Key.Tab].wasPressedThisFrame)
+        {
+            SpawnPlayerInCave();
+        }
     }
     void SpawnPlayerInCave()
     {
-        if (player != null && mainRoom != null)
-        {
-            System.Random rng = new System.Random();
-            Coord spawnCoord = mainRoom.tiles[rng.Next(mainRoom.tiles.Count)];
-            Vector3 spawnPosition = new Vector3(spawnCoord.tileX, 0, spawnCoord.tileY); //CoordToWorldPoint(spawnCoord);
-            
-            spawnPosition.y = PositionOffset;
-            player.transform.position = spawnPosition;
-        }
+        System.Random rng = new System.Random();
+        Coord spawnCoord = mainRoom.tiles[rng.Next(0,mainRoom.tiles.Count)];
+
+        Vector3 spawnPosition = new Vector3(spawnCoord.tileX, 0, spawnCoord.tileY);
+        //Vector3 spawnPosition = CoordToWorldPoint(spawnCoord);
+        Debug.Log($"Player spawn position {spawnPosition}");
+        CharacterController controller = player.characterController;
+        controller.enabled = false;
+        player.transform.position = spawnPosition;
+
+        controller.enabled = true;
     }
     /// <summary>
     /// Creates a new array for map, smooths map, process the walls and rooms, creates mesh and spawn player 
